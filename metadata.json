@@ -1,23 +1,21 @@
 {
+  "title": "S3 Parquet Files",
+  "description": "Datasette instance for querying Parquet files from an S3 bucket",
+  "settings": {  
+    "suggest_facets": false
+  },
   "plugins": {
     "datasette-parquet": {
-      "trove": {
-        "directory": "./trove",
-        "watch": true
-      },
-      "duckdb": {
-        "file": "./trove/fixtures.duckdb"
-      }
-    }
-  },
-  "databases": {
-    "trove": {
-      "queries": {
-        "export": {
-          "sql": "COPY (select geo_id, name, ascii_name, latitude, longitude, feature_class, feature_code, country, cc2, admin1, admin2, admin3, admin4, population, elevation, dem, timezone, updated_at from cities500) TO 'output.csv' (FORMAT CSV);",
-          "write": true
-        }
+      "s3_issues": {
+        "bucket": "local-collection-data",
+        "region": "us-east-1",
+        "endpoint_url": "http://localhost:4566",
+        "access_key": "dummyaccess",
+        "secret_key": "dummysecret",
+        "directory": "s3://local-collection-data/issues",
+        "httpfs": true
       }
     }
   }
 }
+

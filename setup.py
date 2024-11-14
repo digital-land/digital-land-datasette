@@ -32,7 +32,7 @@ setup(
     version=VERSION,
     packages=["datasette_parquet"],
     entry_points={"datasette": ["parquet = datasette_parquet"]},
-    install_requires=["datasette", "duckdb", "sqlglot", "watchdog"],
+    install_requires=["datasette", "duckdb", "sqlglot >= 21.2", "watchdog", "boto3"],
     extras_require={"test": ["pytest", "pytest-asyncio", "pytest-watch"]},
     python_requires=">=3.7",
 )

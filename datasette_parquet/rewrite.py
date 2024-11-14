@@ -40,6 +40,7 @@ def rewrite(sql):
 
     if sql == 'select name from sqlite_master where type="table"':
         sql = "select name from sqlite_master where type='table'"
+    
 
     # Thwart https://github.com/simonw/datasette/blob/0b4a28691468b5c758df74fa1d72a823813c96bf/datasette/utils/__init__.py#L1120-L1127
     if sql.startswith('explain '):
@@ -81,6 +82,7 @@ def rewrite(sql):
         sql = sqlglot.transpile(sql, read='sqlite', write='duckdb')[0]
 
     #print('after transpile: {}'.format(sql))
-
+    if sql.strip().startswith("install"):
+        sql = sql.replace(" AS ", " ")  # Remove the "AS" keyword if it's there
     return sql
 

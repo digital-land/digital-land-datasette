@@ -44,18 +44,6 @@ class Row:
             return self.tpl[self.columns[key]]
 
 def fixup_params(sql, parameters):
-    if isinstance(parameters, dict):
-        # On the custom SQL page, Datasette jams any query parameter it finds
-        # into the parameters for the backend. DuckDB is strict on unexpected
-        # parameters, so try to remove them
-
-        new_parameters = {}
-        for k, v in parameters.items():
-            if ':{}'.format(k) in sql:
-                new_parameters[k] = v
-
-        parameters = new_parameters
-
     # Sometimes we skip queries that DuckDB can't handle, eg DATE(...) facet queries.
     # If the old query had parameters, sending them with the new query will
     # cause an assertion to fail. So return an empty list of parameters.
@@ -64,15 +52,17 @@ def fixup_params(sql, parameters):
 
     if isinstance(parameters, (tuple, list)):
         return sql, parameters
-    else:
-        new_params = []
-        for i, (k, v) in enumerate((parameters or {}).items()):
-            new_params.append(v)
-            sql = sql.replace(':' + k, '${}'.format(i + 1))
 
-        #print('new sql: {}'.format(sql))
-        #print('new params: {}'.format(new_params))
-        return sql, new_params
+    if isinstance(parameters, dict):
+        # from sqlglot 21.2 onwards (Feb 2024), :foo is replaced with $foo already
+        # (previously we had to do this here)
+        assert not any(f':{k}' in sql for k in parameters)
+
+        # On the custom SQL page, Datasette jams any query parameter it finds
+        # into the parameters for the backend. DuckDB is strict on unexpected
+        # parameters, so try to remove them
+        parameters = {k: v for k, v in parameters.items() if '${}'.format(k) in sql}
+    return sql, parameters
 
 class ProxyCursor:
     def __init__(self, conn, existing_cursor=None):
@@ -84,11 +74,13 @@ class ProxyCursor:
             self.cursor = self.conn.cursor()
 
     def execute(self, sql, parameters=None):
-        #print('# params={} sql={}'.format(parameters, sql))
+        # print('# sql={} parameters={}'.format(sql, parameters).replace('\n', ' '))
         sql = rewrite(sql)
+
+        # print('## sql={} parameters={}'.format(sql, parameters).replace('\n', ' '))
         sql, parameters = fixup_params(sql, parameters)
 
-        #print('## params={} sql={}'.format(parameters, sql))
+        # print('## sql={} parameters={}'.format(sql, parameters).replace('\n', ' '))
         t = time.time()
         try:
             rv = self.cursor.execute(sql, parameters)
@@ -185,5 +177,4 @@ class ProxyConnection:
 
     def cursor(self):
         return ProxyCursor(self.conn)
-
 

@@ -1,0 +1,46 @@
+version: "3.8"
+
+services:
+
+  localstack:
+    image: localstack/localstack:3.1
+    container_name: "localstack"
+    ports:
+      - "127.0.0.1:4566:4566"
+      - "127.0.0.1:4510-4559:4510-4559"
+    environment:
+      DEBUG: ${DEBUG:-0}
+      AWS_DEFAULT_REGION: us-east-1
+      SERVICES: s3
+    #volumes:
+      # Optional, uncomment if you need persistence or bootstrap scripts
+      # - "${LOCALSTACK_VOLUME_DIR:-./volume}:/var/lib/localstack"
+      # - "/var/run/docker.sock:/var/run/docker.sock"
+      # - "./localstack_bootstrap:/etc/localstack/init/ready.d/"
+
+  aws-cli:
+    image: mesosphere/aws-cli
+    container_name: "aws-cli"
+    environment:
+      AWS_ACCESS_KEY_ID: dummyaccess
+      AWS_SECRET_ACCESS_KEY: dummysecret
+      AWS_DEFAULT_REGION: us-east-1
+    volumes:
+      - ./issues:/issues/
+    entrypoint: /bin/sh -c
+    command: >
+      "
+        echo Waiting for localstack service start...;
+        while ! nc -z localstack 4566;
+        do
+          sleep 1;
+        done;
+        echo Connected!;
+        aws s3api create-bucket --bucket local-collection-data --endpoint-url http://localstack:4566
+        #Upload all Parquet files from the directory to S3
+        aws s3 cp /issues/ s3://local-collection-data/issues/ --recursive --exclude '*' --include '*.parquet' --endpoint-url http://localstack:4566
+        
+        
+      "
+    depends_on:
+      - localstack

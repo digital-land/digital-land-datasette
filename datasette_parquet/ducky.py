@@ -35,11 +35,13 @@ class SchemaEventHandler(FileSystemEventHandler):
         super().on_modified(event)
         self.on_event()
 
-def create_directory_connection(directory):
+def create_directory_connection(directory,httpfs):
     raw_conn = duckdb.connect()
     conn = ProxyConnection(raw_conn)
-
-    for create_view_stmt in create_views(directory):
+    if httpfs:
+        conn.conn.execute('install httpfs;').fetchall()
+        conn.conn.execute('load httpfs;').fetchall()
+    for create_view_stmt in create_views(directory,httpfs):
         conn.conn.execute(create_view_stmt)
 
     return conn
@@ -49,27 +51,27 @@ class DuckDatabase(Database):
         super().__init__(ds)
 
         self.engine = 'duckdb'
-
+        
         if directory:
-            conn = create_directory_connection(directory)
+            conn = create_directory_connection(directory,httpfs)
 
             def reload():
                 self.conn.conn.close()
-                self.conn = create_directory_connection(directory)
+                self.conn = create_directory_connection(directory,httpfs)
 
-            event_handler = SchemaEventHandler(reload)
-            observer = Observer()
-            observer.schedule(event_handler, directory, recursive=True)
-            observer.start()
+
         elif file:
-            raw_conn = duckdb.connect(file, read_only=True)
+            self.file = 'http://localhost:4566/local-collection-data/issues.parquet'
+            raw_conn = duckdb.connect()
             conn = ProxyConnection(raw_conn)
+            if httpfs:
+                conn.conn.execute('install httpfs;').fetchall()
+                conn.conn.execute('load httpfs;').fetchall()
+                conn.execute(f"CREATE VIEW issue AS SELECT * FROM read_parquet('{self.file}')", []).fetchall()
         else:
             raise Exception('must specify directory or file')
 
-        if httpfs:
-            conn.conn.execute('install httpfs;').fetchall()
-            conn.conn.execute('load httpfs;').fetchall()
+            
 
         self.conn = conn
 

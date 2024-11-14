@@ -5,7 +5,7 @@
     "suggest_facets": false
   },
   "plugins": {
-    "datasette-parquet": {
+    "digital-land-datasette": {
       "s3_issues": {
         "bucket": "local-collection-data",
         "region": "us-east-1",

@@ -1,6 +1,6 @@
 from datasette import hookimpl
 
-PLUGIN_NAME = 'datasette-parquet'
+PLUGIN_NAME = 'digital-land-datasette'
 
 @hookimpl
 def startup(datasette):
@@ -18,7 +18,7 @@ def startup(datasette):
 
     for db_name, options in config.items():
         if not 'directory' in options and not 'file' in options:
-            raise Exception('datasette-parquet: expected directory or file key for db {}'.format(db))
+            raise Exception('digital-land-datasette: expected directory or file key for db {}'.format(db))
 
         if 'directory' in options:
             directory = options['directory']

@@ -13,16 +13,16 @@ def get_long_description():
 
 
 setup(
-    name="datasette-parquet",
+    name="digital-land-datasette",
     description="Read Parquet files in Datasette",
     long_description=get_long_description(),
     long_description_content_type="text/markdown",
     author="Colin Dellow",
-    url="https://github.com/cldellow/datasette-parquet",
+    url="https://github.com/digital-land/digital-land-datasette",
     project_urls={
-        "Issues": "https://github.com/cldellow/datasette-parquet/issues",
-        "CI": "https://github.com/cldellow/datasette-parquet/actions",
-        "Changelog": "https://github.com/cldellow/datasette-parquet/releases",
+        "Issues": "https://github.com/digital-land/digital-land-datasette/issues",
+        "CI": "https://github.com/digital-land/digital-land-datasette/actions",
+        "Changelog": "https://github.com/digital-land/digital-land-datasette/releases",
     },
     license="Apache License, Version 2.0",
     classifiers=[

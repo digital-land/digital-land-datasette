@@ -61,7 +61,6 @@ class DuckDatabase(Database):
 
 
         elif file:
-            self.file = 'http://localhost:4566/local-collection-data/issues.parquet'
             raw_conn = duckdb.connect()
             conn = ProxyConnection(raw_conn)
             if httpfs:

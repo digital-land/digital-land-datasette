@@ -26,7 +26,7 @@ services:
       AWS_SECRET_ACCESS_KEY: dummysecret
       AWS_DEFAULT_REGION: us-east-1
     volumes:
-      - ./issues:/issues/
+      - ./data/issues:/data/issues
     entrypoint: /bin/sh -c
     command: >
       "
@@ -37,10 +37,8 @@ services:
         done;
         echo Connected!;
         aws s3api create-bucket --bucket local-collection-data --endpoint-url http://localstack:4566
-        #Upload all Parquet files from the directory to S3
-        aws s3 cp /issues/ s3://local-collection-data/issues/ --recursive --exclude '*' --include '*.parquet' --endpoint-url http://localstack:4566
-        
-        
+        # Upload the parquet file
+        aws s3 sync /data/issues/ s3://local-collection-data/issues/ --endpoint-url http://localstack:4566
       "
     depends_on:
       - localstack

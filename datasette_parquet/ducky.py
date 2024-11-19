@@ -35,25 +35,26 @@ class SchemaEventHandler(FileSystemEventHandler):
         super().on_modified(event)
         self.on_event()
 
-def create_directory_connection(directory,httpfs):
+def create_directory_connection(directory,httpfs,db_name):
     raw_conn = duckdb.connect()
     conn = ProxyConnection(raw_conn)
     if httpfs:
         conn.conn.execute('install httpfs;').fetchall()
         conn.conn.execute('load httpfs;').fetchall()
-    for create_view_stmt in create_views(directory,httpfs):
+    for create_view_stmt in create_views(directory,httpfs,db_name):
         conn.conn.execute(create_view_stmt)
 
     return conn
 
 class DuckDatabase(Database):
-    def __init__(self, ds, directory=None, file=None, httpfs=None, watch=None):
+    def __init__(self, ds, directory=None, file=None, httpfs=None, watch=None, db_name=None):
         super().__init__(ds)
 
         self.engine = 'duckdb'
+        self.db_name = db_name
         
         if directory:
-            conn = create_directory_connection(directory,httpfs)
+            conn = create_directory_connection(directory,httpfs,db_name)
 
             def reload():
                 self.conn.conn.close()

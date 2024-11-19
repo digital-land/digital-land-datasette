@@ -1,3 +1,4 @@
+import json
 import os
 import boto3
 from pathlib import Path
@@ -16,7 +17,7 @@ def view_for_combined(view_name, file_list):
     return f"CREATE VIEW \"{view_name}\" AS " + " UNION ALL ".join(
         [f"SELECT * FROM read_parquet('{file}')" for file in file_list]
     )
-def create_views(dirname,httpfs):
+def create_views(dirname,httpfs,db_name):
     rv = []
 
     
@@ -26,13 +27,13 @@ def create_views(dirname,httpfs):
         bucket_name = dirname.split('/')[2]
         prefix = '/'.join(dirname.split('/')[3:])
         
-        # LocalStack endpoint for S3
-        s3_endpoint = "http://localhost:4566"
-        
-        # Initialize S3 client with dummy credentials for LocalStack
-        s3 = boto3.client('s3', endpoint_url=s3_endpoint,
-                          aws_access_key_id='dummyaccess',
-                          aws_secret_access_key='dummysecret')
+        # Get endpoint url from metadata file
+        with open("metadata.json") as f:
+            metadata = json.loads(f)
+        s3_endpoint = metadata["plugins"]["digital-land-datasette"][db_name]["endpoint_url"]
+
+        # Initialize S3 client
+        s3 = boto3.client('s3', endpoint_url=s3_endpoint)
         
         # List all .parquet files in the specified bucket and prefix
         try:

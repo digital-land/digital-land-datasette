@@ -22,7 +22,7 @@ def startup(datasette):
 
         if 'directory' in options:
             directory = options['directory']
-            db = DuckDatabase(datasette, directory=directory,httpfs = options['httpfs'], watch=options.get('watch', False) == True)
+            db = DuckDatabase(datasette, directory=directory,httpfs = options['httpfs'], watch=options.get('watch', False) == True, db_name=db_name)
             datasette.add_database(db, db_name)
         else:
             file = options['file']

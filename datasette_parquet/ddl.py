@@ -29,7 +29,7 @@ def create_views(dirname,httpfs,db_name):
         
         # Get endpoint url from metadata file
         with open("metadata.json") as f:
-            metadata = json.loads(f)
+            metadata = json.load(f)
         s3_endpoint = metadata["plugins"]["digital-land-datasette"][db_name]["endpoint_url"]
 
         # Initialize S3 client

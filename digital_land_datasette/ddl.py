@@ -53,7 +53,7 @@ def create_views(dirname,httpfs,db_name):
         
         # List all .parquet files in the specified bucket and prefix
         try:
-            response = s3.list_objects_v2(Bucket=bucket_name, Prefix=ensure_trailing_slash(prefix), Delimiter='/')
+            response = s3.list_objects_v2(Bucket=bucket_name, Prefix=ensure_trailing_slash(prefix))
             if 'Contents' not in response:
                 logging.error(f"No files found in the specified bucket/prefix: {bucket_name}/{prefix}")
                 return view_list

@@ -55,7 +55,7 @@ def create_views(dirname,httpfs,db_name):
         try:
             response = s3.list_objects_v2(Bucket=bucket_name, Prefix=ensure_trailing_slash(prefix), Delimiter='/')
             if 'Contents' not in response:
-                print("No files found in the specified bucket/prefix.")
+                logging.error(f"No files found in the specified bucket/prefix: {bucket_name}/{prefix}")
                 return view_list
         except Exception as e:
             print(f"Error listing objects in S3 bucket: {e}")

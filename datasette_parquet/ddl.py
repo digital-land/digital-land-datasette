@@ -41,7 +41,7 @@ def create_views(dirname,httpfs,db_name):
         # Initialize S3 client
         # comment out something that  grabs the s3 endpoint from the metadata and instead
         # 
-        s3 = boto3.client('s3', endpoint_url=s3_endpoint)
+        # s3 = boto3.client('s3', endpoint_url=s3_endpoint)
         
         # List all .parquet files in the specified bucket and prefix
         try:

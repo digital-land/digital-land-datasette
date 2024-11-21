@@ -2,8 +2,8 @@ from datasette.app import Datasette
 from .create_db import create_dbs
 import pytest
 import duckdb
-from datasette_parquet.winging_it import ProxyConnection
-from datasette_parquet import exceptions
+from digital_land_datasette.winging_it import ProxyConnection
+from digital_land_datasette import exceptions
 
 @pytest.fixture(scope="session")
 def datasette():

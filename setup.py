@@ -30,9 +30,19 @@ setup(
         "License :: OSI Approved :: Apache Software License"
     ],
     version=VERSION,
-    packages=["datasette_parquet"],
-    entry_points={"datasette": ["parquet = datasette_parquet"]},
+    packages=["digital_land_datasette"],
+    entry_points={"datasette": ["parquet = digital_land_datasette"]},
     install_requires=["datasette", "duckdb", "sqlglot >= 21.2", "watchdog", "boto3"],
-    extras_require={"test": ["pytest", "pytest-asyncio", "pytest-watch"]},
+    extras_require={
+        'test': [
+            'pytest', 
+            'pytest-asyncio', 
+            'pytest-watch',
+            'pytest-mock',
+            'moto',
+            'pyarrow',
+            'pandas',
+        ]
+    },
     python_requires=">=3.7",
 )

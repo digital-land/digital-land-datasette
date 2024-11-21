@@ -28,11 +28,19 @@ def create_views(dirname,httpfs,db_name):
         prefix = '/'.join(dirname.split('/')[3:])
         
         # Get endpoint url from metadata file
-        with open("metadata.json") as f:
-            metadata = json.load(f)
-        s3_endpoint = metadata["plugins"]["digital-land-datasette"][db_name]["endpoint_url"]
+        # with open("metadata.json") as f:
+        #     metadata = json.load(f)
+        # s3_endpoint = metadata["plugins"]["digital-land-datasette"][db_name]["endpoint_url"]
+        # Get endpoint url from environment
+        env_endpoint_url = os.getenv("AWS_ENDPOINT_URL")
+        if env_endpoint_url:
+            s3 = boto3.client('s3', endpoint_url=s3_endpoint)
+        else:
+            s3 = boto3.client('s3')
 
         # Initialize S3 client
+        # comment out something that  grabs the s3 endpoint from the metadata and instead
+        # 
         s3 = boto3.client('s3', endpoint_url=s3_endpoint)
         
         # List all .parquet files in the specified bucket and prefix

@@ -34,7 +34,7 @@ def create_views(dirname,httpfs,db_name):
         # Get endpoint url from environment
         env_endpoint_url = os.getenv("AWS_ENDPOINT_URL")
         if env_endpoint_url:
-            s3 = boto3.client('s3', endpoint_url=s3_endpoint)
+            s3 = boto3.client('s3', endpoint_url=env_endpoint_url)
         else:
             s3 = boto3.client('s3')
 

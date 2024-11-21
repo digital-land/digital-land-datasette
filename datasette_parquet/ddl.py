@@ -58,7 +58,7 @@ def create_views(dirname,httpfs,db_name):
         for obj in response['Contents']:
             fname = obj['Key']
             if fname.endswith('.parquet'): # An extra check to ensure only parquet files are considered
-                file_urls.append(f"{s3_endpoint}/{bucket_name}/{fname}")
+                file_urls.append(f"{env_endpoint_url}/{bucket_name}/{fname}")
         
         # Use the directory name as the view name
         view_name = Path(dirname).name

@@ -44,8 +44,7 @@ def create_views(dirname,httpfs,db_name):
     """
     view_list = []
     
-    if httpfs:
-        combined_view_stmt = ""
+    if httpfs: 
         # Parse the bucket name and prefix
         bucket_name = dirname.split('/')[2]
         prefix = '/'.join(dirname.split('/')[3:])
@@ -53,19 +52,29 @@ def create_views(dirname,httpfs,db_name):
         
         # List all .parquet files in the specified bucket and prefix
         try:
-            response = s3.list_objects_v2(Bucket=bucket_name, Prefix=ensure_trailing_slash(prefix))
-            if 'Contents' not in response:
+            response = s3.list_objects_v2(Bucket=bucket_name, Prefix=ensure_trailing_slash(prefix),Delimiter='/')
+            if 'Contents' not in response and 'CommonPrefixes' not in response:
                 logging.error(f"No files found in the specified bucket/prefix: {bucket_name}/{prefix}")
                 return view_list
         except Exception as e:
             print(f"Error listing objects in S3 bucket: {e}")
             return view_list
         
-        keys = [obj['Key'] for obj in response['Contents']]
+        # by using the delimeter above and filtering on the directory
+        # we get files listed in the contents setion and directories
+        # in common prrefixes. Either could be empty
+        keys = []
+
+        contents = response.get('Contents')
+        if contents:
+            for obj in contents:
+                keys.append(obj['Key'])
+       
 
         # check for Common prrefixes
-        if response['CommonPrefixes']:
-            for prefix  in response['CommonPrefixes']:
+        common_prefixes = response.get('CommonPrefixes')
+        if common_prefixes:
+            for prefix  in common_prefixes:
                 keys.append(prefix['Prefix'])
 
         # create a view for each key in the top level of the bucket
@@ -97,7 +106,3 @@ def create_views(dirname,httpfs,db_name):
                 view_list.append(view_for(Path(fname).stem, fname, fname))
 
     return [x for x in view_list if x]
-
-# security  notes to improve:
-# - s3 bucket access will control what they can query so it mmay need to be locked down to specific queries
-# - need  to impose a timeout limit for queries this should now be possible with duckdb after it has  been update but double check

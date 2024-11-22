@@ -1,11 +1,30 @@
 from digital_land_datasette.ddl import create_views
 
 import logging
+import pytest
 import pyarrow as pa
 import pyarrow.parquet as pq
 import pandas as pd
 
-def test_create_views_creates_from_s3_directory(s3_client,tmp_path,mocker):
+
+@pytest.mark.parametrize("keys, count",
+    [
+        (
+            [
+                'log/data_1.parquet',
+                'log/data_2/city=new-york/data_1.parquet'
+            ],
+            2
+        ),
+        (
+            [
+                'log/data_2/city=new-york/data_1.parquet'
+            ],
+            1
+        )
+    ]
+)
+def test_create_views_creates_from_s3_directory(keys,count,s3_client,tmp_path,mocker):
     """
     A test to ensure parquet filles se are picked up at the moment httpfs
     is used as an indicator for it being in s3
@@ -31,8 +50,7 @@ def test_create_views_creates_from_s3_directory(s3_client,tmp_path,mocker):
 
     s3_client.create_bucket(Bucket=bucket_name)
 
-    keys = ['log/data_1.parquet','log/data_2/city=new-york/data_1.parquet']
-
+    "load a data file in for all keys supplied"
     for key in keys:
         s3_client.upload_file(str(file_path),bucket_name,key)
 
@@ -44,7 +62,7 @@ def test_create_views_creates_from_s3_directory(s3_client,tmp_path,mocker):
     mocker.patch('digital_land_datasette.ddl.create_s3_client',return_value=s3_client)
 
     logging.debug(views)
-    assert len(views) == 2, f"expected 2 views to be generated fromm s3 bucket but only {len(views)} created"
+    assert len(views) == count, f"expected 2 views to be generated fromm s3 bucket but only {len(views)} created"
     # all filles are parquet so parquet should be in all views
     for view in views:
         assert '.parquet' in view

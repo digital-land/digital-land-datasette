@@ -78,13 +78,14 @@ def create_views(dirname,httpfs,db_name):
                 keys.append(prefix['Prefix'])
 
         # create a view for each key in the top level of the bucket
+        env_endpoint_url = os.getenv("AWS_ENDPOINT_URL")
         for key in keys:
             key_path = Path(key)
             if key_path.suffix:
-                view_list.append(view_for(key_path.stem, '.parquet', f's3://{bucket_name}/{key_path}'))
+                view_list.append(view_for(key_path.stem, '.parquet', f'{env_endpoint_url}/{bucket_name}/{key_path}'))
                 
             else:
-                glob = f's3://{bucket_name}/{str(key_path / "**/*.parquet")}'
+                glob = f'{env_endpoint_url}/{bucket_name}/{str(key_path / "**/*.parquet")}'
                 view_list.append(view_for(key_path.stem, '.parquet',glob))
         
         # Use the directory name as the view name

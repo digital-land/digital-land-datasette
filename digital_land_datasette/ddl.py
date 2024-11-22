@@ -9,7 +9,7 @@ def view_for(view_name, fname, glob):
     if fname.endswith(('.csv', '.tsv')):
         return "CREATE VIEW \"{}\" AS SELECT * FROM read_csv_auto('{}', header=true)".format(view_name, glob)
     elif fname.endswith('.parquet'):
-        return "CREATE VIEW \"{}\" AS SELECT * FROM '{}'".format(view_name, glob)
+        return "CREATE VIEW \"{}\" AS SELECT * FROM parquet_scan('{}')".format(view_name, glob)
     elif fname.endswith(('.ndjson', '.jsonl')):
         return "CREATE VIEW \"{}\" AS SELECT * FROM read_ndjson_auto('{}')".format(view_name, glob)
 
@@ -85,7 +85,7 @@ def create_views(dirname,httpfs,db_name):
                 view_list.append(view_for(key_path.stem, '.parquet', f'{env_endpoint_url}/{bucket_name}/{key_path}'))
                 
             else:
-                glob = f'{env_endpoint_url}/{bucket_name}/{str(key_path / "**/*.parquet")}'
+                glob = f'({env_endpoint_url}/{bucket_name}/{str(key_path / "**/*.parquet")}'
                 view_list.append(view_for(key_path.stem, '.parquet',glob))
         
         # Use the directory name as the view name

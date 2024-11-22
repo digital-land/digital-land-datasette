@@ -81,10 +81,10 @@ def create_views(dirname,httpfs,db_name):
         for key in keys:
             key_path = Path(key)
             if key_path.suffix:
-                view_list.append(view_for(key_path.stem, '.parquet', key_path))
+                view_list.append(view_for(key_path.stem, '.parquet', f's3://{bucket_name}/{key_path}'))
                 
             else:
-                view_list.append(view_for(key_path.stem, '.parquet', key_path / '**/*.parquet'))
+                view_list.append(view_for(key_path.stem, '.parquet', f's3://{bucket_name}/{str(key_path / '**/*.parquet')}'))
         
         # Use the directory name as the view name
         

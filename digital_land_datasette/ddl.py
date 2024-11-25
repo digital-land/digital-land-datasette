@@ -42,6 +42,7 @@ def create_views(dirname,httpfs,db_name):
     as tables do not exist, instead we create views that can be queried rather 
     than having to know the structure of the url
     """
+    logging.info(f"adding views for {dirname}")
     view_list = []
     
     if httpfs: 
@@ -106,5 +107,5 @@ def create_views(dirname,httpfs,db_name):
                 view_list.append(view_for(Path(fname).stem, file.path, os.path.join(fname, '*' + Path(file).suffix)))
             else:
                 view_list.append(view_for(Path(fname).stem, fname, fname))
-
+    logging.info(f"finished adding view for {dirname}")
     return [x for x in view_list if x]

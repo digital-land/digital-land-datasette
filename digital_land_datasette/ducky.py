@@ -40,10 +40,12 @@ def create_directory_connection(directory,httpfs,db_name):
     raw_conn = duckdb.connect()
     conn = ProxyConnection(raw_conn)
     if httpfs:
+        logging.error('installing httpfs')
         conn.conn.execute('install httpfs;').fetchall()
         conn.conn.execute('load httpfs;').fetchall()
-    for create_view_stmt in create_views(directory,httpfs,db_name):
-        conn.conn.execute(create_view_stmt)
+        logging.error('htttpfs installed')
+    # for create_view_stmt in create_views(directory,httpfs,db_name):
+    #     conn.conn.execute(create_view_stmt)
 
     return conn
 
@@ -54,27 +56,27 @@ class DuckDatabase(Database):
         self.engine = 'duckdb'
         self.db_name = db_name
         logging.error(f'make db {db_name} for directory {directory}')
-        # if directory:
-        #     conn = create_directory_connection(directory,httpfs,db_name)
+        if directory:
+            conn = create_directory_connection(directory,httpfs,db_name)
 
-        #     def reload():
-        #         self.conn.conn.close()
-        #         self.conn = create_directory_connection(directory,httpfs)
+            def reload():
+                self.conn.conn.close()
+                self.conn = create_directory_connection(directory,httpfs)
 
 
-        # elif file:
-        #     raw_conn = duckdb.connect()
-        #     conn = ProxyConnection(raw_conn)
-        #     if httpfs:
-        #         conn.conn.execute('install httpfs;').fetchall()
-        #         conn.conn.execute('load httpfs;').fetchall()
-        #         conn.execute(f"CREATE VIEW issue AS SELECT * FROM read_parquet('{self.file}')", []).fetchall()
-        # else:
-        #     raise Exception('must specify directory or file')
+        elif file:
+            raw_conn = duckdb.connect()
+            conn = ProxyConnection(raw_conn)
+            if httpfs:
+                conn.conn.execute('install httpfs;').fetchall()
+                conn.conn.execute('load httpfs;').fetchall()
+                conn.execute(f"CREATE VIEW issue AS SELECT * FROM read_parquet('{self.file}')", []).fetchall()
+        else:
+            raise Exception('must specify directory or file')
 
             
 
-        # self.conn = conn
+        self.conn = conn
 
     @property
     def size(self):

@@ -42,6 +42,7 @@ def create_views(dirname,httpfs,db_name):
     as tables do not exist, instead we create views that can be queried rather 
     than having to know the structure of the url
     """
+    logging.basicConfig(level=logging.DEBUG)
     logging.error(f"adding views for {dirname}")
     view_list = []
     

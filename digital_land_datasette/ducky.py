@@ -1,5 +1,6 @@
 import asyncio
 import duckdb
+import logging
 from .debounce import debounce
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler, LoggingEventHandler
@@ -52,28 +53,28 @@ class DuckDatabase(Database):
 
         self.engine = 'duckdb'
         self.db_name = db_name
-        
-        if directory:
-            conn = create_directory_connection(directory,httpfs,db_name)
+        logging.error(f'make db {db_name} for directory {directory}')
+        # if directory:
+        #     conn = create_directory_connection(directory,httpfs,db_name)
 
-            def reload():
-                self.conn.conn.close()
-                self.conn = create_directory_connection(directory,httpfs)
+        #     def reload():
+        #         self.conn.conn.close()
+        #         self.conn = create_directory_connection(directory,httpfs)
 
 
-        elif file:
-            raw_conn = duckdb.connect()
-            conn = ProxyConnection(raw_conn)
-            if httpfs:
-                conn.conn.execute('install httpfs;').fetchall()
-                conn.conn.execute('load httpfs;').fetchall()
-                conn.execute(f"CREATE VIEW issue AS SELECT * FROM read_parquet('{self.file}')", []).fetchall()
-        else:
-            raise Exception('must specify directory or file')
+        # elif file:
+        #     raw_conn = duckdb.connect()
+        #     conn = ProxyConnection(raw_conn)
+        #     if httpfs:
+        #         conn.conn.execute('install httpfs;').fetchall()
+        #         conn.conn.execute('load httpfs;').fetchall()
+        #         conn.execute(f"CREATE VIEW issue AS SELECT * FROM read_parquet('{self.file}')", []).fetchall()
+        # else:
+        #     raise Exception('must specify directory or file')
 
             
 
-        self.conn = conn
+        # self.conn = conn
 
     @property
     def size(self):

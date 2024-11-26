@@ -53,10 +53,10 @@ def create_directory_connection(directory,httpfs,db_name):
     except Exception as e:
         # Catch and print any errors that occur
         print("An error occurred:", e)
-        
+
     if httpfs:
         logging.error('installing httpfs')
-        raw_conn.conn.execute('install httpfs;')
+        raw_conn.execute('install httpfs;')
         raw_conn.execute('load httpfs;')
         logging.error('htttpfs installed')
     # for create_view_stmt in create_views(directory,httpfs,db_name):

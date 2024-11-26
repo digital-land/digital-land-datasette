@@ -45,15 +45,14 @@ def create_directory_connection(directory,httpfs,db_name):
 
     try:
         response = requests.get("https://example.com")
-        print("Network access is working:", response.status_code)
+        logging.error("Network access is working:", response.status_code)
     except requests.ConnectionError:
-        print("Network access is restricted.")
+        logging.error("Network access is restricted.")
 
     if httpfs:
-        logging.error('installing httpfs')
-        raw_conn.execute('install httpfs;')
+        logging.error('loading httpfs')
         raw_conn.execute('load httpfs;')
-        logging.error('htttpfs installed')
+        logging.error('htttpfs loaded')
     # for create_view_stmt in create_views(directory,httpfs,db_name):
     #     conn.conn.execute(create_view_stmt)
 

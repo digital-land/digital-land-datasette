@@ -39,10 +39,25 @@ class SchemaEventHandler(FileSystemEventHandler):
 def create_directory_connection(directory,httpfs,db_name):
     raw_conn = duckdb.connect()
     conn = ProxyConnection(raw_conn)
+
+    # before trying to install let's check network compatabiity
+    try:
+        # Try installing the HTTPFS extension
+        conn.execute("INSTALL httpfs;")
+        print("HTTPFS extension installed successfully.")
+        
+        # Load the HTTPFS extension
+        conn.execute("LOAD httpfs;")
+        print("HTTPFS extension loaded successfully.")
+
+    except Exception as e:
+        # Catch and print any errors that occur
+        print("An error occurred:", e)
+        
     if httpfs:
         logging.error('installing httpfs')
-        conn.conn.execute('install httpfs;').fetchall()
-        conn.conn.execute('load httpfs;').fetchall()
+        raw_conn.conn.execute('install httpfs;')
+        raw_conn.execute('load httpfs;')
         logging.error('htttpfs installed')
     # for create_view_stmt in create_views(directory,httpfs,db_name):
     #     conn.conn.execute(create_view_stmt)

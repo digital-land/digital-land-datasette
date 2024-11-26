@@ -41,18 +41,13 @@ def create_directory_connection(directory,httpfs,db_name):
     conn = ProxyConnection(raw_conn)
 
     # before trying to install let's check network compatabiity
-    try:
-        # Try installing the HTTPFS extension
-        conn.execute("INSTALL httpfs;")
-        print("HTTPFS extension installed successfully.")
-        
-        # Load the HTTPFS extension
-        conn.execute("LOAD httpfs;")
-        print("HTTPFS extension loaded successfully.")
+    import requests
 
-    except Exception as e:
-        # Catch and print any errors that occur
-        print("An error occurred:", e)
+    try:
+        response = requests.get("https://example.com")
+        print("Network access is working:", response.status_code)
+    except requests.ConnectionError:
+        print("Network access is restricted.")
 
     if httpfs:
         logging.error('installing httpfs')

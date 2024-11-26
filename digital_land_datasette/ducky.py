@@ -1,6 +1,7 @@
 import asyncio
 import duckdb
 import logging
+import requests
 from .debounce import debounce
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler, LoggingEventHandler
@@ -41,7 +42,6 @@ def create_directory_connection(directory,httpfs,db_name):
     conn = ProxyConnection(raw_conn)
 
     # before trying to install let's check network compatabiity
-    import requests
 
     try:
         response = requests.get("https://example.com")

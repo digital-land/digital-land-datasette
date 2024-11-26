@@ -32,7 +32,7 @@ setup(
     version=VERSION,
     packages=["digital_land_datasette"],
     entry_points={"datasette": ["parquet = digital_land_datasette"]},
-    install_requires=["datasette", "duckdb", "sqlglot >= 21.2", "watchdog", "boto3"],
+    install_requires=["datasette", "duckdb", "sqlglot >= 21.2", "watchdog", "boto3","requests","httpfs"],
     extras_require={
         'test': [
             'pytest', 

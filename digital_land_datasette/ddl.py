@@ -42,17 +42,19 @@ def create_views(dirname,httpfs,db_name):
     as tables do not exist, instead we create views that can be queried rather 
     than having to know the structure of the url
     """
-    logging.info(f"adding views for {dirname}")
+    logging.error(f"adding views for {dirname}")
     view_list = []
     
     if httpfs: 
         # Parse the bucket name and prefix
         bucket_name = dirname.split('/')[2]
         prefix = '/'.join(dirname.split('/')[3:])
+        logging.error(f"create client for {dirname}")
         s3 = create_s3_client()
         
         # List all .parquet files in the specified bucket and prefix
         try:
+            logging.error(f"listing objects in bucket {dirname}")
             response = s3.list_objects_v2(Bucket=bucket_name, Prefix=ensure_trailing_slash(prefix),Delimiter='/')
             if 'Contents' not in response and 'CommonPrefixes' not in response:
                 logging.error(f"No files found in the specified bucket/prefix: {bucket_name}/{prefix}")
@@ -77,6 +79,8 @@ def create_views(dirname,httpfs,db_name):
         if common_prefixes:
             for prefix  in common_prefixes:
                 keys.append(prefix['Prefix'])
+        
+        logging.error(keys)
 
         # create a view for each key in the top level of the bucket
         env_endpoint_url = os.getenv("AWS_ENDPOINT_URL")

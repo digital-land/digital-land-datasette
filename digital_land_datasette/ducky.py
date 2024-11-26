@@ -41,14 +41,6 @@ def create_directory_connection(directory,httpfs,db_name):
     raw_conn = duckdb.connect()
     conn = ProxyConnection(raw_conn)
 
-    # before trying to install let's check network compatabiity
-
-    try:
-        response = requests.get("https://example.com")
-        logging.error("Network access is working:", response.status_code)
-    except requests.ConnectionError as e:
-        logging.error(f"Network access is restricted.{e}")
-
     if httpfs:
         # logging.error('loading httpfs')
         # raw_conn.execute('load httpfs;')

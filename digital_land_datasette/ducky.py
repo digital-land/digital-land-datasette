@@ -15,10 +15,16 @@ logger = logging.getLogger('__name__')
 use_aws_credential_chain = os.environ.get("USE_AWS_CREDENTIAL_CHAIN", 'true').lower() == "true"
 def create_duckdb_conn(use_aws_credential_chain=True):
     conn = duckdb.connect()
-    logger.debug(conn.execute("SET allow_file_writes = FALSE;").fetchall())
+    logger.debug(conn.execute("SET disabled_filesystems = 'LocalFileSystem';").fetchall())
+    logger.debug(conn.execute("SET allow_community_extensions = false;").fetchall())
+    
     if use_aws_credential_chain:
         logger.debug(conn.execute("CREATE SECRET aws (TYPE S3, PROVIDER CREDENTIAL_CHAIN);").fetchall())
         logger.debug(conn.execute("FROM duckdb_secrets();").fetchall())
+    
+    # lock configuration so no changes can be made
+    logger.debug(conn.execute("SET lock_configuration=TRUE").fetchall())
+   
     return conn
 
 class SchemaEventHandler(FileSystemEventHandler):

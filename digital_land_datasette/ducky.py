@@ -14,7 +14,7 @@ logger = logging.getLogger('__name__')
 
 use_aws_credential_chain = os.environ.get("USE_AWS_CREDENTIAL_CHAIN", 'true').lower() == "true"
 def create_duckdb_conn(use_aws_credential_chain=True):
-    conn = duckdb.connect(read_only=True)
+    conn = duckdb.connect()
     if use_aws_credential_chain:
                 logger.debug(conn.execute("CREATE SECRET aws (TYPE S3, PROVIDER CREDENTIAL_CHAIN);").fetchall())
                 logger.debug(conn.execute("FROM duckdb_secrets();").fetchall())

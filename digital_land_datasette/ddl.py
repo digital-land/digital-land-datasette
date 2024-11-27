@@ -4,6 +4,8 @@ import boto3
 import logging
 from pathlib import Path
 
+logger = logging.getLogger('__name__')
+
 def view_for(view_name, fname, glob):
     view_name = view_name.replace('.', '_')
     if fname.endswith(('.csv', '.tsv')):
@@ -12,6 +14,7 @@ def view_for(view_name, fname, glob):
         return "CREATE VIEW \"{}\" AS SELECT * FROM parquet_scan('{}')".format(view_name, glob)
     elif fname.endswith(('.ndjson', '.jsonl')):
         return "CREATE VIEW \"{}\" AS SELECT * FROM read_ndjson_auto('{}')".format(view_name, glob)
+
 
 # def view_for_combined(view_name, file_list):
 #     # Create a UNION ALL query for all files in file_list
@@ -42,26 +45,24 @@ def create_views(dirname,httpfs,db_name):
     as tables do not exist, instead we create views that can be queried rather 
     than having to know the structure of the url
     """
-    logging.basicConfig(level=logging.DEBUG)
-    logging.error(f"adding views for {dirname}")
+    logger.info(f"adding views for {dirname}")
     view_list = []
     
     if httpfs: 
         # Parse the bucket name and prefix
         bucket_name = dirname.split('/')[2]
         prefix = '/'.join(dirname.split('/')[3:])
-        logging.error(f"create client for {dirname}")
+        logger.info(f"create client for {dirname}")
         s3 = create_s3_client()
         
         # List all .parquet files in the specified bucket and prefix
         try:
-            logging.error(f"listing objects in bucket {dirname}")
             response = s3.list_objects_v2(Bucket=bucket_name, Prefix=ensure_trailing_slash(prefix),Delimiter='/')
             if 'Contents' not in response and 'CommonPrefixes' not in response:
-                logging.error(f"No files found in the specified bucket/prefix: {bucket_name}/{prefix}")
+                logger.info(f"no relevant keys found for s3 directory {dirname}")
                 return view_list
         except Exception as e:
-            print(f"Error listing objects in S3 bucket: {e}")
+            logger.error(f"Error listing objects in S3 bucket: {e}")
             return view_list
         
         # by using the delimeter above and filtering on the directory
@@ -81,10 +82,8 @@ def create_views(dirname,httpfs,db_name):
             for prefix  in common_prefixes:
                 keys.append(prefix['Prefix'])
         
-        logging.error(keys)
-
+        logger.info(f"{len(keys)} keys found, creating views for {','.join(keys)}")
         # create a view for each key in the top level of the bucket
-        env_endpoint_url = os.getenv("AWS_ENDPOINT_URL")
         for key in keys:
             key_path = Path(key)
             if key_path.suffix:
@@ -112,5 +111,5 @@ def create_views(dirname,httpfs,db_name):
                 view_list.append(view_for(Path(fname).stem, file.path, os.path.join(fname, '*' + Path(file).suffix)))
             else:
                 view_list.append(view_for(Path(fname).stem, fname, fname))
-    logging.info(f"finished adding view for {dirname}")
+    logger.info(f"finished adding view for {dirname}")
     return [x for x in view_list if x]

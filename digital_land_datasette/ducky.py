@@ -1,13 +1,24 @@
 import asyncio
 import duckdb
 import logging
-import requests
+import os
+
 from .debounce import debounce
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler, LoggingEventHandler
 from datasette.database import Database, Results
 from .ddl import create_views
 from .winging_it import ProxyConnection
+
+logger = logging.getLogger('__name__')
+
+use_aws_credential_chain = os.environ.get("USE_AWS_CREDENTIAL_CHAIN", 'true').lower() == "true"
+def create_duckdb_conn(use_aws_credential_chain=True):
+    conn = duckdb.connect(read_only=True)
+    if use_aws_credential_chain:
+                logger.debug(conn.execute("CREATE SECRET aws (TYPE S3, PROVIDER CREDENTIAL_CHAIN);").fetchall())
+                logger.debug(conn.execute("FROM duckdb_secrets();").fetchall())
+    return conn
 
 class SchemaEventHandler(FileSystemEventHandler):
     """React to files being added/removed from the watched directory."""
@@ -38,13 +49,13 @@ class SchemaEventHandler(FileSystemEventHandler):
         self.on_event()
 
 def create_directory_connection(directory,httpfs,db_name):
-    raw_conn = duckdb.connect()
+    raw_conn = create_duckdb_conn()
     conn = ProxyConnection(raw_conn)
 
     if httpfs:
-        # logging.error('loading httpfs')
-        # raw_conn.execute('load httpfs;')
-        logging.error('not loading httpfs skipped')
+        logger.info('installing and loading httpfs')
+        conn.conn.execute('INSTALL httpfs;')
+        conn.conn.execute('LOAD httpfs;')
     for create_view_stmt in create_views(directory,httpfs,db_name):
         conn.conn.execute(create_view_stmt)
 
@@ -56,7 +67,7 @@ class DuckDatabase(Database):
 
         self.engine = 'duckdb'
         self.db_name = db_name
-        logging.error(f'make db {db_name} for directory {directory}')
+        logger.info(f'make db {db_name} for directory {directory}')
         if directory:
             conn = create_directory_connection(directory,httpfs,db_name)
 
@@ -74,8 +85,6 @@ class DuckDatabase(Database):
                 conn.execute(f"CREATE VIEW issue AS SELECT * FROM read_parquet('{self.file}')", []).fetchall()
         else:
             raise Exception('must specify directory or file')
-
-            
 
         self.conn = conn
 

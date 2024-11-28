@@ -73,7 +73,7 @@ class SchemaEventHandler(FileSystemEventHandler):
         self.on_event()
 
 def create_directory_connection(directory,httpfs,db_name):
-    raw_conn = create_duckdb_conn()
+    raw_conn = create_duckdb_conn(use_aws_credential_chain)
     conn = ProxyConnection(raw_conn)
 
     for create_view_stmt in create_views(directory,httpfs,db_name):

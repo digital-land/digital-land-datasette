@@ -15,6 +15,8 @@ logger = logging.getLogger('__name__')
 use_aws_credential_chain = os.environ.get("USE_AWS_CREDENTIAL_CHAIN", 'true').lower() == "true"
 def create_duckdb_conn(use_aws_credential_chain=True):
     conn = duckdb.connect()
+    logger.debug(conn.execute('INSTALL httpfs;').fetchall())
+    logger.debug(conn.execute('LOAD httpfs;').fetchall())
     logger.debug(conn.execute("SET disabled_filesystems = 'LocalFileSystem';").fetchall())
     logger.debug(conn.execute("SET allow_community_extensions = false;").fetchall())
     
@@ -59,10 +61,6 @@ def create_directory_connection(directory,httpfs,db_name):
     raw_conn = create_duckdb_conn()
     conn = ProxyConnection(raw_conn)
 
-    if httpfs:
-        logger.info('installing and loading httpfs')
-        conn.conn.execute('INSTALL httpfs;')
-        conn.conn.execute('LOAD httpfs;')
     for create_view_stmt in create_views(directory,httpfs,db_name):
         conn.conn.execute(create_view_stmt)
 

@@ -15,7 +15,6 @@ def startup(datasette):
     from .patches import monkey_patch
 
     monkey_patch()
-    logging.error('plugin has ran')
 
     for db_name, options in config.items():
         try:

@@ -31,6 +31,7 @@ def create_duckdb_conn(use_aws_credential_chain=True):
     logger.debug(conn.execute('LOAD httpfs;').fetchall())
     logger.debug(conn.execute("SET disabled_filesystems = 'LocalFileSystem';").fetchall())
     logger.debug(conn.execute("SET allow_community_extensions = false;").fetchall())
+    logger.debug(conn.execute("SET ;").fetchall())
     
     if use_aws_credential_chain:
         logger.debug(conn.execute("CREATE SECRET aws (TYPE S3, PROVIDER CREDENTIAL_CHAIN);").fetchall())
@@ -97,9 +98,7 @@ class DuckDatabase(Database):
             raw_conn = duckdb.connect()
             conn = ProxyConnection(raw_conn)
             if httpfs:
-                conn.conn.execute('install httpfs;').fetchall()
-                conn.conn.execute('load httpfs;').fetchall()
-                conn.execute(f"CREATE VIEW issue AS SELECT * FROM read_parquet('{self.file}')", []).fetchall()
+                conn.execute(f"CREATE VIEW issue AS SELECT * FROM read_parquet('{self.file}') LIMIT 100;", []).fetchall()
         else:
             raise Exception('must specify directory or file')
 

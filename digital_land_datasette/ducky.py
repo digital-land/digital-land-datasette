@@ -3,6 +3,7 @@ import duckdb
 import logging
 import os
 
+from distutils.util import strtobool
 from .debounce import debounce
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler, LoggingEventHandler
@@ -12,7 +13,18 @@ from .winging_it import ProxyConnection
 
 logger = logging.getLogger('__name__')
 
-use_aws_credential_chain = os.environ.get("USE_AWS_CREDENTIAL_CHAIN", 'true').lower() == "true"
+def get_bool(value,default=None):
+    try:
+        bool(strtobool(value))
+        return value
+    except ValueError as e:
+        if default is not None:
+            logging.debug(f'could not convert value to bool assigning default {default}')
+            return default
+        else:
+            raise e
+
+use_aws_credential_chain = get_bool(os.environ.get("USE_AWS_CREDENTIAL_CHAIN"),True)
 def create_duckdb_conn(use_aws_credential_chain=True):
     conn = duckdb.connect()
     logger.debug(conn.execute('INSTALL httpfs;').fetchall())

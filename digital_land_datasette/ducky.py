@@ -15,7 +15,7 @@ logger = logging.getLogger('__name__')
 
 def get_bool(value,default=None):
     try:
-        bool(strtobool(value))
+        value = bool(strtobool(value))
         return value
     except ValueError as e:
         if default is not None:
@@ -24,7 +24,7 @@ def get_bool(value,default=None):
         else:
             raise e
 
-use_aws_credential_chain = get_bool(os.environ.get("USE_AWS_CREDENTIAL_CHAIN"),True)
+use_aws_credential_chain = get_bool(os.environ.get("USE_AWS_CREDENTIAL_CHAIN",""),True)
 def create_duckdb_conn(use_aws_credential_chain=True):
     conn = duckdb.connect()
     logger.debug(conn.execute('INSTALL httpfs;').fetchall())

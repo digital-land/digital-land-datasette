@@ -18,9 +18,12 @@ def create_duckdb_conn(use_aws_credential_chain=True):
     logger.debug(conn.execute('INSTALL httpfs;').fetchall())
     logger.debug(conn.execute('LOAD httpfs;').fetchall())
     logger.debug(conn.execute("SET disabled_filesystems = 'LocalFileSystem';").fetchall())
-    # logger.debug(conn.execute("SET allow_community_extensions = false;").fetchall())
+    logger.debug(conn.execute("SET allow_community_extensions = false;").fetchall())
     
-    # if use_aws_credential_chain:
+    logging.error(use_aws_credential_chain)
+    if use_aws_credential_chain:
+        logging.error('chain  is activate')
+
     #     logger.debug(conn.execute("CREATE SECRET aws (TYPE S3, PROVIDER CREDENTIAL_CHAIN);").fetchall())
     #     logger.debug(conn.execute("FROM duckdb_secrets();").fetchall())
     

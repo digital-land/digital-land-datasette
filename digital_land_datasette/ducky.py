@@ -17,15 +17,15 @@ def create_duckdb_conn(use_aws_credential_chain=True):
     conn = duckdb.connect()
     logger.debug(conn.execute('INSTALL httpfs;').fetchall())
     logger.debug(conn.execute('LOAD httpfs;').fetchall())
-    logger.debug(conn.execute("SET disabled_filesystems = 'LocalFileSystem';").fetchall())
-    logger.debug(conn.execute("SET allow_community_extensions = false;").fetchall())
+    # logger.debug(conn.execute("SET disabled_filesystems = 'LocalFileSystem';").fetchall())
+    # logger.debug(conn.execute("SET allow_community_extensions = false;").fetchall())
     
-    if use_aws_credential_chain:
-        logger.debug(conn.execute("CREATE SECRET aws (TYPE S3, PROVIDER CREDENTIAL_CHAIN);").fetchall())
-        logger.debug(conn.execute("FROM duckdb_secrets();").fetchall())
+    # if use_aws_credential_chain:
+    #     logger.debug(conn.execute("CREATE SECRET aws (TYPE S3, PROVIDER CREDENTIAL_CHAIN);").fetchall())
+    #     logger.debug(conn.execute("FROM duckdb_secrets();").fetchall())
     
     # lock configuration so no changes can be made
-    logger.debug(conn.execute("SET lock_configuration=TRUE").fetchall())
+    # logger.debug(conn.execute("SET lock_configuration=TRUE").fetchall())
    
     return conn
 

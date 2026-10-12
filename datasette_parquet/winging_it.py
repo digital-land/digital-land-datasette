@@ -1,8 +1,11 @@
+import contextlib
+import sqlite3
+import threading
 import time
 import re
 import typing
 
-from duckdb import BinderException 
+from duckdb import BinderException, InterruptException
 
 from .rewrite import rewrite, NO_OP_SQL
 from . import exceptions
@@ -43,19 +46,16 @@ class Row:
         else:
             return self.tpl[self.columns[key]]
 
+@contextlib.contextmanager
+def interrupted_as_sqlite_error():
+    # Datasette only recognises a query that hit its time limit by sqlite3's
+    # "interrupted" error, so translate DuckDB's equivalent into that
+    try:
+        yield
+    except InterruptException as ex:
+        raise sqlite3.OperationalError("interrupted") from ex
+
 def fixup_params(sql, parameters):
-    if isinstance(parameters, dict):
-        # On the custom SQL page, Datasette jams any query parameter it finds
-        # into the parameters for the backend. DuckDB is strict on unexpected
-        # parameters, so try to remove them
-
-        new_parameters = {}
-        for k, v in parameters.items():
-            if ':{}'.format(k) in sql:
-                new_parameters[k] = v
-
-        parameters = new_parameters
-
     # Sometimes we skip queries that DuckDB can't handle, eg DATE(...) facet queries.
     # If the old query had parameters, sending them with the new query will
     # cause an assertion to fail. So return an empty list of parameters.
@@ -64,15 +64,20 @@ def fixup_params(sql, parameters):
 
     if isinstance(parameters, (tuple, list)):
         return sql, parameters
-    else:
-        new_params = []
-        for i, (k, v) in enumerate((parameters or {}).items()):
-            new_params.append(v)
-            sql = sql.replace(':' + k, '${}'.format(i + 1))
 
-        #print('new sql: {}'.format(sql))
-        #print('new params: {}'.format(new_params))
-        return sql, new_params
+    # Datasette uses named :param placeholders. Newer sqlglot rewrites them to
+    # DuckDB's $param form while older versions leave them as :param, so accept
+    # both and bind by name. On the custom SQL page Datasette passes every query
+    # string parameter, and DuckDB rejects unused ones, so keep only those in the SQL.
+    used = {}
+    for k, v in (parameters or {}).items():
+        placeholder = re.compile(r'[:$]{}\b'.format(re.escape(k)))
+        if placeholder.search(sql):
+            sql = placeholder.sub('$' + k, sql)
+            used[k] = v
+
+    return sql, used or []
+
 
 class ProxyCursor:
     def __init__(self, conn, existing_cursor=None):
@@ -91,7 +96,9 @@ class ProxyCursor:
         #print('## params={} sql={}'.format(parameters, sql))
         t = time.time()
         try:
-            rv = self.cursor.execute(sql, parameters)
+            with interrupted_as_sqlite_error():
+                rv = self.cursor.execute(sql, parameters)
+
         except BinderException as ex:
             matches = find_matching_double_quote_usage(ex)
             if matches:
@@ -116,7 +123,9 @@ class ProxyCursor:
         return Row(columns, tpl)
 
     def fetchmany(self, size=1):
-        tpls = self.cursor.fetchmany(size)
+        with interrupted_as_sqlite_error():
+            tpls = self.cursor.fetchmany(size)
+
         columns = {}
         for i, x in enumerate(self.cursor.description):
             columns[x[0]] = i
@@ -124,7 +133,9 @@ class ProxyCursor:
         return [Row(columns, tpl) for tpl in tpls]
 
     def fetchall(self):
-        tpls = self.cursor.fetchall()
+        with interrupted_as_sqlite_error():
+            tpls = self.cursor.fetchall()
+
         columns = {}
         for i, x in enumerate(self.cursor.description):
             columns[x[0]] = i
@@ -150,8 +161,19 @@ class ProxyCursor:
         return getattr(self.cursor, name)
 
 class ProxyConnection:
-    def __init__(self, conn):
+    def __init__(self, conn, per_query=False):
         self.conn = conn
+        self.per_query = per_query
+        self._stop_watching = None
+
+    def for_query(self):
+        # DuckDB's cursor() opens a new connection to the same database, which shares
+        # its views and loaded extensions
+        return ProxyConnection(self.conn.cursor(), per_query=True)
+
+    def close(self):
+        self.set_progress_handler(None, 0)
+        self.conn.close()
 
     def __enter__(self):
         pass
@@ -181,9 +203,31 @@ class ProxyConnection:
         raise Exception('TODO: ProxyConnection.fetchall is not implemented')
 
     def set_progress_handler(self, handler, n):
-        pass
+        # Datasette enforces its SQL time limit through this sqlite3 hook: handler()
+        # returns true once the deadline has passed, and Datasette calls this again with
+        # None when the query is done. DuckDB has no such hook, so poll the handler from
+        # a watcher thread and interrupt this connection's query when it fires.
+        if self._stop_watching is not None:
+            self._stop_watching.set()
+            self._stop_watching = None
+        if handler is None:
+            return
+
+        stop = threading.Event()
+        self._stop_watching = stop
+
+        def watch():
+            while not stop.wait(0.05):
+                if handler():
+                    self.conn.interrupt()
+                    return
+
+        threading.Thread(target=watch, daemon=True).start()
 
     def cursor(self):
+        if self.per_query:
+            # keep everything Datasette runs for this call on the call's own connection
+            return ProxyCursor(self.conn, self.conn)
         return ProxyCursor(self.conn)
 
 

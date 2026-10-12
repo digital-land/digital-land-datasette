@@ -83,7 +83,13 @@ class DuckDatabase(Database):
             raise Exception('non-threaded mode not supported')
 
         def in_thread():
-            return fn(self.conn)
+            # A DuckDB connection can't be shared between threads, so give each call its
+            # own. This also lets a query timeout interrupt just the query that ran over.
+            conn = self.conn.for_query()
+            try:
+                return fn(conn)
+            finally:
+                conn.close()
 
         return await asyncio.get_event_loop().run_in_executor(
             self.ds.executor, in_thread
@@ -94,7 +100,12 @@ class DuckDatabase(Database):
             raise Exception('non-threaded mode not supported')
 
         def in_thread():
-            return fn(self.conn)
+            conn = self.conn.for_query()
+            try:
+                return fn(conn)
+            finally:
+                conn.close()
+
 
         # We lie, we'll always block.
         return await asyncio.get_event_loop().run_in_executor(

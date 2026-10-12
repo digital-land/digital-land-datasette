@@ -1,3 +1,4 @@
+import asyncio
 from datasette.app import Datasette
 from .create_db import create_dbs
 import pytest
@@ -113,3 +114,21 @@ def test_fixup_params_does_not_match_name_prefixes():
 def test_fixup_params_without_parameters():
     assert fixup_params('SELECT 1', None) == ('SELECT 1', [])
     assert fixup_params('SELECT 1', {}) == ('SELECT 1', [])
+
+
+@pytest.mark.asyncio
+async def test_each_call_gets_its_own_duckdb_connection(datasette):
+    db = datasette.get_database('duckdb')
+    seen = []
+    await db.execute_fn(lambda conn: seen.append(conn.conn))
+    await db.execute_fn(lambda conn: seen.append(conn.conn))
+    assert seen[0] is not seen[1]
+    assert db.conn.conn not in seen
+
+
+@pytest.mark.asyncio
+async def test_concurrent_requests_all_succeed(datasette):
+    # a shared DuckDB connection used from several threads at once fails intermittently
+    paths = ["/duckdb", "/duckdb/fixtures", "/trove/fixtures.json"] * 30
+    responses = await asyncio.gather(*[datasette.client.get(p) for p in paths])
+    assert [r.status_code for r in responses] == [200] * len(paths)

@@ -143,8 +143,17 @@ class ProxyCursor:
         return getattr(self.cursor, name)
 
 class ProxyConnection:
-    def __init__(self, conn):
+    def __init__(self, conn, per_query=False):
         self.conn = conn
+        self.per_query = per_query
+
+    def for_query(self):
+        # DuckDB's cursor() opens a new connection to the same database, which shares
+        # its views and loaded extensions
+        return ProxyConnection(self.conn.cursor(), per_query=True)
+
+    def close(self):
+        self.conn.close()
 
     def __enter__(self):
         pass
@@ -177,6 +186,9 @@ class ProxyConnection:
         pass
 
     def cursor(self):
+        if self.per_query:
+            # keep everything Datasette runs for this call on the call's own connection
+            return ProxyCursor(self.conn, self.conn)
         return ProxyCursor(self.conn)
 
 

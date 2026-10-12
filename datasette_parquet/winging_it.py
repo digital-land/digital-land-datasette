@@ -1,8 +1,11 @@
+import contextlib
+import sqlite3
+import threading
 import time
 import re
 import typing
 
-from duckdb import BinderException 
+from duckdb import BinderException, InterruptException
 
 from .rewrite import rewrite, NO_OP_SQL
 from . import exceptions
@@ -42,6 +45,15 @@ class Row:
             return self.tpl[key]
         else:
             return self.tpl[self.columns[key]]
+
+@contextlib.contextmanager
+def interrupted_as_sqlite_error():
+    # Datasette only recognises a query that hit its time limit by sqlite3's
+    # "interrupted" error, so translate DuckDB's equivalent into that
+    try:
+        yield
+    except InterruptException as ex:
+        raise sqlite3.OperationalError("interrupted") from ex
 
 def fixup_params(sql, parameters):
     # Sometimes we skip queries that DuckDB can't handle, eg DATE(...) facet queries.
@@ -84,7 +96,9 @@ class ProxyCursor:
         #print('## params={} sql={}'.format(parameters, sql))
         t = time.time()
         try:
-            rv = self.cursor.execute(sql, parameters)
+            with interrupted_as_sqlite_error():
+                rv = self.cursor.execute(sql, parameters)
+
         except BinderException as ex:
             matches = find_matching_double_quote_usage(ex)
             if matches:
@@ -109,7 +123,9 @@ class ProxyCursor:
         return Row(columns, tpl)
 
     def fetchmany(self, size=1):
-        tpls = self.cursor.fetchmany(size)
+        with interrupted_as_sqlite_error():
+            tpls = self.cursor.fetchmany(size)
+
         columns = {}
         for i, x in enumerate(self.cursor.description):
             columns[x[0]] = i
@@ -117,7 +133,9 @@ class ProxyCursor:
         return [Row(columns, tpl) for tpl in tpls]
 
     def fetchall(self):
-        tpls = self.cursor.fetchall()
+        with interrupted_as_sqlite_error():
+            tpls = self.cursor.fetchall()
+
         columns = {}
         for i, x in enumerate(self.cursor.description):
             columns[x[0]] = i
@@ -146,6 +164,7 @@ class ProxyConnection:
     def __init__(self, conn, per_query=False):
         self.conn = conn
         self.per_query = per_query
+        self._stop_watching = None
 
     def for_query(self):
         # DuckDB's cursor() opens a new connection to the same database, which shares
@@ -153,6 +172,7 @@ class ProxyConnection:
         return ProxyConnection(self.conn.cursor(), per_query=True)
 
     def close(self):
+        self.set_progress_handler(None, 0)
         self.conn.close()
 
     def __enter__(self):
@@ -183,7 +203,26 @@ class ProxyConnection:
         raise Exception('TODO: ProxyConnection.fetchall is not implemented')
 
     def set_progress_handler(self, handler, n):
-        pass
+        # Datasette enforces its SQL time limit through this sqlite3 hook: handler()
+        # returns true once the deadline has passed, and Datasette calls this again with
+        # None when the query is done. DuckDB has no such hook, so poll the handler from
+        # a watcher thread and interrupt this connection's query when it fires.
+        if self._stop_watching is not None:
+            self._stop_watching.set()
+            self._stop_watching = None
+        if handler is None:
+            return
+
+        stop = threading.Event()
+        self._stop_watching = stop
+
+        def watch():
+            while not stop.wait(0.05):
+                if handler():
+                    self.conn.interrupt()
+                    return
+
+        threading.Thread(target=watch, daemon=True).start()
 
     def cursor(self):
         if self.per_query:

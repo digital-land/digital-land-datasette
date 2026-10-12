@@ -1,4 +1,6 @@
 import asyncio
+import sqlite3
+import time
 from datasette.app import Datasette
 from .create_db import create_dbs
 import pytest
@@ -132,3 +134,37 @@ async def test_concurrent_requests_all_succeed(datasette):
     paths = ["/duckdb", "/duckdb/fixtures", "/trove/fixtures.json"] * 30
     responses = await asyncio.gather(*[datasette.client.get(p) for p in paths])
     assert [r.status_code for r in responses] == [200] * len(paths)
+
+
+def test_time_limit_interrupts_a_long_duckdb_query():
+    conn = ProxyConnection(duckdb.connect(), per_query=True)
+    deadline = time.perf_counter() + 0.2
+    conn.set_progress_handler(lambda: time.perf_counter() >= deadline, 1000)
+    started = time.perf_counter()
+
+    with pytest.raises(sqlite3.OperationalError, match="interrupted"):
+        conn.cursor().execute("SELECT sum(i) FROM range(1000000000000) t(i)")
+
+    conn.close()
+    assert time.perf_counter() - started < 5
+
+
+def test_queries_without_a_time_limit_are_not_interrupted():
+    conn = ProxyConnection(duckdb.connect(), per_query=True)
+    conn.set_progress_handler(lambda: False, 1000)
+    rows = conn.cursor().execute("SELECT sum(i) AS total FROM range(1000000) t(i)").fetchall()
+    conn.set_progress_handler(None, 1000)
+    conn.close()
+    assert rows[0][0] == 499999500000
+
+
+@pytest.mark.asyncio
+async def test_datasette_reports_a_long_query_as_too_long(datasette):
+    # Datasette's default sql_time_limit_ms is 1000
+    started = time.perf_counter()
+    response = await datasette.client.get(
+        "/duckdb.json?sql=select+sum(i)+from+range(1000000000000)+t(i)"
+    )
+    assert response.status_code == 400
+    assert response.json()["title"] == "SQL Interrupted"
+    assert time.perf_counter() - started < 10

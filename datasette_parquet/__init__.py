@@ -18,14 +18,14 @@ def startup(datasette):
 
     for db_name, options in config.items():
         if not 'directory' in options and not 'file' in options:
-            raise Exception('datasette-parquet: expected directory or file key for db {}'.format(db))
+            raise Exception('datasette-parquet: expected directory or file key for db {}'.format(db_name))
 
         if 'directory' in options:
             directory = options['directory']
-            db = DuckDatabase(datasette, directory=directory, watch=options.get('watch', False) == True, settings=options.get('settings'))
+            db = DuckDatabase(datasette, directory=directory, watch=options.get('watch', False) == True, settings=options.get('settings'), setup_sql=options.get('setup_sql'), allowed_directories=options.get('allowed_directories'))
             datasette.add_database(db, db_name)
         else:
             file = options['file']
-            db = DuckDatabase(datasette, file=file, settings=options.get('settings'))
+            db = DuckDatabase(datasette, file=file, settings=options.get('settings'), setup_sql=options.get('setup_sql'), allowed_directories=options.get('allowed_directories'))
             datasette.add_database(db, db_name)
 

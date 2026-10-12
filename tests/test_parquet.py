@@ -22,7 +22,8 @@ def datasette():
                 },
                 'limited': {
                     'directory': './fixtures',
-                    'settings': {'memory_limit': '64MiB', 'threads': 1}
+                    'settings': {'memory_limit': '64MiB', 'threads': 1},
+                    'setup_sql': ['CREATE TABLE setup_marker AS SELECT 42 AS answer']
                 }
 
             }
@@ -191,3 +192,36 @@ async def test_memory_limit_stops_a_query_that_needs_more(datasette):
         await db.execute_fn(
             lambda conn: conn.execute("SELECT list(i) FROM range(200000000) t(i)").fetchall()
         )
+
+
+@pytest.mark.asyncio
+async def test_select_cannot_read_local_files(datasette):
+    for name in ('duckdb', 'trove'):
+        db = datasette.get_database(name)
+        with pytest.raises(duckdb.PermissionException):
+            await db.execute_fn(
+                lambda conn: conn.execute("SELECT content FROM read_text('tests/test_parquet.py')").fetchall()
+            )
+
+
+@pytest.mark.asyncio
+async def test_select_cannot_read_urls(datasette):
+    db = datasette.get_database('duckdb')
+    with pytest.raises(duckdb.PermissionException):
+        await db.execute_fn(
+            lambda conn: conn.execute("SELECT content FROM read_text('https://example.com/')").fetchall()
+        )
+
+
+@pytest.mark.asyncio
+async def test_sql_cannot_change_the_configuration(datasette):
+    db = datasette.get_database('duckdb')
+    with pytest.raises(duckdb.InvalidInputException, match="configuration has been locked"):
+        await db.execute_fn(lambda conn: conn.execute("SET enable_external_access = true"))
+
+
+@pytest.mark.asyncio
+async def test_setup_sql_runs_before_lockdown(datasette):
+    response = await datasette.client.get("/limited.json?sql=select+answer+from+setup_marker&_shape=array")
+    assert response.status_code == 200
+    assert response.json() == [{'answer': 42}]

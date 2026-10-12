@@ -35,8 +35,8 @@ class SchemaEventHandler(FileSystemEventHandler):
         super().on_modified(event)
         self.on_event()
 
-def create_directory_connection(directory):
-    raw_conn = duckdb.connect()
+def create_directory_connection(directory, settings=None):
+    raw_conn = duckdb.connect(config=settings or {})
     conn = ProxyConnection(raw_conn)
 
     for create_view_stmt in create_views(directory):
@@ -45,24 +45,28 @@ def create_directory_connection(directory):
     return conn
 
 class DuckDatabase(Database):
-    def __init__(self, ds, directory=None, file=None, httpfs=None, watch=None):
+    def __init__(self, ds, directory=None, file=None, httpfs=None, watch=None, settings=None):
+        # settings are DuckDB configuration options, e.g. memory_limit, threads and
+        # temp_directory. They apply to the whole database, so every per-query
+        # connection inherits them. Without them DuckDB uses up to 80% of the machine's
+        # memory and every core.
         super().__init__(ds)
 
         self.engine = 'duckdb'
 
         if directory:
-            conn = create_directory_connection(directory)
+            conn = create_directory_connection(directory, settings)
 
             def reload():
                 self.conn.conn.close()
-                self.conn = create_directory_connection(directory)
+                self.conn = create_directory_connection(directory, settings)
 
             event_handler = SchemaEventHandler(reload)
             observer = Observer()
             observer.schedule(event_handler, directory, recursive=True)
             observer.start()
         elif file:
-            raw_conn = duckdb.connect(file, read_only=True)
+            raw_conn = duckdb.connect(file, read_only=True, config=settings or {})
             conn = ProxyConnection(raw_conn)
         else:
             raise Exception('must specify directory or file')

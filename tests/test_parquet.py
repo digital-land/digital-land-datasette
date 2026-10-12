@@ -19,6 +19,10 @@ def datasette():
                 },
                 'duckdb': {
                     'file': './fixtures/fixtures.duckdb'
+                },
+                'limited': {
+                    'directory': './fixtures',
+                    'settings': {'memory_limit': '64MiB', 'threads': 1}
                 }
 
             }
@@ -168,3 +172,22 @@ async def test_datasette_reports_a_long_query_as_too_long(datasette):
     assert response.status_code == 400
     assert response.json()["title"] == "SQL Interrupted"
     assert time.perf_counter() - started < 10
+
+
+@pytest.mark.asyncio
+async def test_settings_apply_to_every_query_connection(datasette):
+    db = datasette.get_database('limited')
+    memory_limit, threads = await db.execute_fn(
+        lambda conn: conn.execute("SELECT current_setting('memory_limit'), current_setting('threads')").fetchone()
+    )
+    assert memory_limit == '64.0 MiB'
+    assert threads == 1
+
+
+@pytest.mark.asyncio
+async def test_memory_limit_stops_a_query_that_needs_more(datasette):
+    db = datasette.get_database('limited')
+    with pytest.raises(duckdb.OutOfMemoryException):
+        await db.execute_fn(
+            lambda conn: conn.execute("SELECT list(i) FROM range(200000000) t(i)").fetchall()
+        )

@@ -44,18 +44,6 @@ class Row:
             return self.tpl[self.columns[key]]
 
 def fixup_params(sql, parameters):
-    if isinstance(parameters, dict):
-        # On the custom SQL page, Datasette jams any query parameter it finds
-        # into the parameters for the backend. DuckDB is strict on unexpected
-        # parameters, so try to remove them
-
-        new_parameters = {}
-        for k, v in parameters.items():
-            if ':{}'.format(k) in sql:
-                new_parameters[k] = v
-
-        parameters = new_parameters
-
     # Sometimes we skip queries that DuckDB can't handle, eg DATE(...) facet queries.
     # If the old query had parameters, sending them with the new query will
     # cause an assertion to fail. So return an empty list of parameters.
@@ -64,15 +52,20 @@ def fixup_params(sql, parameters):
 
     if isinstance(parameters, (tuple, list)):
         return sql, parameters
-    else:
-        new_params = []
-        for i, (k, v) in enumerate((parameters or {}).items()):
-            new_params.append(v)
-            sql = sql.replace(':' + k, '${}'.format(i + 1))
 
-        #print('new sql: {}'.format(sql))
-        #print('new params: {}'.format(new_params))
-        return sql, new_params
+    # Datasette uses named :param placeholders. Newer sqlglot rewrites them to
+    # DuckDB's $param form while older versions leave them as :param, so accept
+    # both and bind by name. On the custom SQL page Datasette passes every query
+    # string parameter, and DuckDB rejects unused ones, so keep only those in the SQL.
+    used = {}
+    for k, v in (parameters or {}).items():
+        placeholder = re.compile(r'[:$]{}\b'.format(re.escape(k)))
+        if placeholder.search(sql):
+            sql = placeholder.sub('$' + k, sql)
+            used[k] = v
+
+    return sql, used or []
+
 
 class ProxyCursor:
     def __init__(self, conn, existing_cursor=None):

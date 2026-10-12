@@ -2,7 +2,7 @@ from datasette.app import Datasette
 from .create_db import create_dbs
 import pytest
 import duckdb
-from datasette_parquet.winging_it import ProxyConnection
+from datasette_parquet.winging_it import ProxyConnection, fixup_params
 from datasette_parquet import exceptions
 
 @pytest.fixture(scope="session")
@@ -85,3 +85,31 @@ def test_catch_double_quote_usage_for_literal(datasette):
 
     with pytest.raises(exceptions.DoubleQuoteForLiteraValue):
         result = conn.execute(explodey_string_with_double_quotes).fetchall()
+
+def test_fixup_params_binds_dollar_placeholders_by_name():
+    # newer sqlglot rewrites Datasette's :n to $n
+    sql, params = fixup_params('SELECT sql FROM sqlite_master WHERE name = $n AND type = $t', {'n': 'fixtures', 't': 'view'})
+    assert sql == 'SELECT sql FROM sqlite_master WHERE name = $n AND type = $t'
+    assert params == {'n': 'fixtures', 't': 'view'}
+
+
+def test_fixup_params_converts_colon_placeholders():
+    sql, params = fixup_params('SELECT * FROM t WHERE a = :a', {'a': 1})
+    assert sql == 'SELECT * FROM t WHERE a = $a'
+    assert params == {'a': 1}
+
+
+def test_fixup_params_drops_unused_parameters():
+    sql, params = fixup_params('SELECT * FROM t WHERE a = $a', {'a': 1, '_hide_sql': '1'})
+    assert params == {'a': 1}
+
+
+def test_fixup_params_does_not_match_name_prefixes():
+    # $n must not be treated as a use of $name, or vice versa
+    sql, params = fixup_params('SELECT * FROM t WHERE x = $name', {'n': 1, 'name': 2})
+    assert params == {'name': 2}
+
+
+def test_fixup_params_without_parameters():
+    assert fixup_params('SELECT 1', None) == ('SELECT 1', [])
+    assert fixup_params('SELECT 1', {}) == ('SELECT 1', [])
